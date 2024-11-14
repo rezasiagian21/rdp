@@ -1,0 +1,45 @@
+name: Deploy to Windows Server
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Memungkinkan pemicuan manual
+
+jobs:
+  deploy:
+    runs-on: windows-latest # Menggunakan runner Windows
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up .NET (jika menggunakan .NET)
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '5.0.x' # Sesuaikan dengan versi .NET yang Anda gunakan
+
+      - name: Install dependencies
+        run: |
+          dotnet restore # Menginstal dependensi .NET
+
+      - name: Build project
+        run: |
+          dotnet build --configuration Release # Mengkompilasi proyek
+
+      - name: Run tests
+        run: |
+          dotnet test # Menjalankan pengujian
+
+      - name: Deploy to Windows Server
+        run: |
+          $ErrorActionPreference = "Stop"
+          $session = New-PSSession -ComputerName "your-server-ip" -Credential (Get-Credential)
+          Invoke-Command -Session $session -ScriptBlock {
+              param($repoPath)
+              # Masukkan perintah deploy Anda di sini, misalnya:
+              cd $repoPath
+              git pull
+              Start-Process -NoNewWindow -FilePath "C:\path\to\your\application.exe"
+          } -ArgumentList "C:\path\to\your\repository"
+          Remove-PSSession -Session $session
