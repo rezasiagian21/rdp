@@ -1,43 +1,25 @@
-name: Build and Create Tunnel with Ngrok
+name: CI
 
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch: # Memungkinkan pemicuan manual
+on: [push, workflow_dispatch]
 
 jobs:
   build:
-    runs-on: windows-latest # Menggunakan runner Windows
+
+    runs-on: windows-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Set up .NET (jika menggunakan .NET)
-        uses: actions/setup-dotnet@v1
-        with:
-          dotnet-version: '5.0.x' # Sesuaikan dengan versi .NET yang Anda gunakan
-
-      - name: Install dependencies
-        run: |
-          dotnet restore # Menginstal dependensi
-
-      - name: Build project
-        run: |
-          dotnet build --configuration Release # Mengkompilasi proyek
-
-      - name: Run Application
-        run: |
-          Start-Process -NoNewWindow -FilePath "C:\path\to\your\application.exe" # Ganti dengan path aplikasi Anda
-          Start-Sleep -s 10 # Tunggu beberapa detik agar aplikasi bisa berjalan
-
-      - name: Download Ngrok
-        run: |
-          Invoke-WebRequest -Uri https://bin.equinox.io/c/111111/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
-          Expand-Archive ngrok.zip -DestinationPath Ngrok
-          Remove-Item ngrok.zip
-
-      - name: Start Ngrok Tunnel
-        run: |
-          Ngrok\ngrok.exe http 80 # Ganti dengan port yang diinginkan jika perlu
+    - name: Download
+      run: Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
+    - name: Extract
+      run: Expand-Archive ngrok.zip
+    - name: Auth
+      run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
+      env:
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+    - name: Enable TS
+      run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server'-name "fDenyTSConnections" -Value 0
+    - run: Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+    - run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
+    - run: Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "P@ssw0rd!" -Force)
+    - name: Create Tunnel
+      run: .\ngrok\ngrok.exe tcp 3389
